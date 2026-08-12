@@ -1,0 +1,55 @@
+{
+  "name": "astro-dist-compress",
+  "version": "0.1.0",
+  "description": "Astro integration that compresses and converts images in the build output, with per-directory / per-image-state rules and automatic fallback generation.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "example:build": "npm run build && cd example && npm install && npm run build",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "keywords": [
+    "astro",
+    "astro-integration",
+    "image",
+    "compress",
+    "webp",
+    "avif"
+  ],
+  "peerDependencies": {
+    "astro": ">=4.0.0"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.2",
+    "node-html-parser": "^6.1.13",
+    "picomatch": "^4.0.2",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/picomatch": "^3.0.2",
+    "astro": "^4.16.19",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitepress": "^1.6.4",
+    "vitest": "^2.1.8"
+  }
+}
