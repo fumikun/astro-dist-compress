@@ -5,6 +5,7 @@
   "type": "module",
   "license": "MIT",
   "homepage": "https://fumikun.github.io/astro-dist-compress/",
+  "packageManager": "pnpm@10.33.0",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
