@@ -1,9 +1,10 @@
 {
   "name": "astro-dist-compress",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Astro integration that compresses and converts images in the build output, with per-directory / per-image-state rules and automatic fallback generation.",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://fumikun.github.io/astro-dist-compress/",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

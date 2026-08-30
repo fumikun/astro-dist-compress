@@ -52,9 +52,8 @@ export default defineConfig({
   title: "astro-dist-compress",
   description: "Compress and convert images in your Astro build output, with per-directory / per-image-state rules and automatic fallback generation.",
 
-  // Change this if the docs are deployed under a sub-path (e.g. GitHub Pages
-  // project sites: base: "/astro-dist-compress/").
-  base: "/",
+  // Deployed as a GitHub Pages project site at https://fumikun.github.io/astro-dist-compress/.
+  base: "/astro-dist-compress/",
 
   themeConfig: {
     search: {

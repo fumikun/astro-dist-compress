@@ -1,27 +1,27 @@
 # astro-dist-compress
 
-Astroの**ビルド出力(dist)**に対して画像圧縮・フォーマット変換を行うインテグレーションです。
-[`astro-compress`](https://github.com/astro-community/astro-compress) と異なり、**画像のフォーマット/透過有無/ディレクトリ**などの状態に応じて変換ルールをTypeScriptで柔軟に定義でき、フォールバック用画像の生成とHTMLの`<picture>`書き換えまで自動で行います。
+An Astro integration that compresses and converts images in your **build output (`dist`)**.
+Unlike [`astro-compress`](https://github.com/astro-community/astro-compress), it lets you define conversion rules in TypeScript that flexibly depend on an image's **format, transparency, and directory**, and it automatically generates fallback images and rewrites HTML `<img>` tags into `<picture>`.
 
-- 開発サーバー(`astro dev`)では**何もしません**。`astro:build:done`フックはビルド時にしか発火しないため、動作を切り分ける特別なコードは不要です。
-- `astro build`完了後、distを走査して画像を変換し、必要なら生成物を参照するように`<img>`を`<picture>`に書き換えます。
+- It does **nothing** during the dev server (`astro dev`). The `astro:build:done` hook only fires on build, so no special mode-detection code is needed.
+- After `astro build` finishes, it scans `dist`, converts images, and — if needed — rewrites `<img>` tags to reference the generated files as `<picture>`.
 
-## ドキュメント(日本語 / English)
+## Documentation (English / 日本語)
 
-より詳しいガイド・APIリファレンスはVitePressサイトにあります(日英対応)。
+A more detailed guide and API reference are available on the VitePress site (English and Japanese).
 
 ```bash
-npm run docs:dev      # http://localhost:5173 でプレビュー
-npm run docs:build    # docs/.vitepress/dist に静的ビルド
+npm run docs:dev      # preview at http://localhost:5173
+npm run docs:build    # static build into docs/.vitepress/dist
 ```
 
-## インストール
+## Install
 
 ```bash
 npm install astro-dist-compress
 ```
 
-## クイックスタート
+## Quick start
 
 ```ts
 // astro.config.ts
@@ -33,18 +33,18 @@ export default defineConfig({
 });
 ```
 
-デフォルト設定は要件どおりの挙動です:
+The default configuration behaves as follows:
 
-- 透過ありPNG → **WebP**
-- 透過なしPNG → **AVIF**
+- PNG with transparency → **WebP**
+- PNG without transparency → **AVIF**
 - JPEG → **AVIF**
-- 上記すべてに **WebPフォールバックを自動生成**(すでにWebPを出力するルールには重複追加しない)
-- 変換後、distのHTML内の該当`<img>`を`<picture>`に自動書き換え
-- 元ファイルはデフォルトで保持(`removeOriginal: false`)
+- A **WebP fallback is auto-generated** for all of the above (not added again if a rule already outputs WebP)
+- Matching `<img>` tags in the build output's HTML are automatically rewritten into `<picture>`
+- Original files are kept by default (`removeOriginal: false`)
 
-## ディレクトリ・画像状態ごとのルール設定
+## Rules per directory / image state
 
-`rules`はTypeScriptの配列で、上から順に最初にマッチしたルールが使われます。`match`は`ImageContext`を受け取る述語関数です。
+`rules` is a TypeScript array; the first matching rule (top to bottom) is used. `match` is a predicate function that receives an `ImageContext`.
 
 ```ts
 import { defineConfig } from "astro/config";
@@ -54,13 +54,13 @@ export default defineConfig({
   integrations: [
     distCompress({
       rules: [
-        // /assets/hero 配下だけは画質を落として強めにAVIF化
+        // Only images under /assets/hero get more aggressive AVIF compression
         {
           name: "hero images -> aggressive avif",
           match: inDir("assets/hero"),
           outputs: [{ format: "avif", options: { quality: 40 } }],
         },
-        // 大きいPNG(透過あり)だけ変換、小さいアイコン等はそのまま
+        // Only convert large transparent PNGs — leave small icons alone
         {
           name: "large png-with-alpha -> webp",
           match: and(hasFormat("png"), hasAlpha(true), biggerThan(20_000)),
@@ -83,23 +83,23 @@ export default defineConfig({
 });
 ```
 
-### 用意されているマッチャー(`src/matchers.ts`)
+### Built-in matchers (`src/matchers.ts`)
 
-| 関数 | 説明 |
+| Function | Description |
 | --- | --- |
-| `inDir(...globs)` | 指定ディレクトリ配下の画像にマッチ(`assets/hero` のように書けば配下すべて) |
-| `pathMatches(...globs)` | 相対パス全体をglobでマッチ(例: `"**/icons/*.png"`) |
-| `hasFormat(...formats)` | 元フォーマットでマッチ(`"png" | "jpeg" | ...`) |
-| `hasAlpha(expected?)` | 透過(アルファチャンネル)の有無でマッチ |
-| `largerThan({ width?, height?})` | 指定ピクセルサイズ以上でマッチ |
-| `biggerThan(bytes)` | 指定バイト数以上のファイルサイズでマッチ |
-| `and / or / not` | マッチャーの合成 |
+| `inDir(...globs)` | Matches images under the given directory globs (e.g. `assets/hero` matches everything below it) |
+| `pathMatches(...globs)` | Matches the full relative path against globs (e.g. `"**/icons/*.png"`) |
+| `hasFormat(...formats)` | Matches by source format (`"png" | "jpeg" | ...`) |
+| `hasAlpha(expected?)` | Matches by presence/absence of an alpha channel |
+| `largerThan({ width?, height?})` | Matches images at or above the given pixel dimensions |
+| `biggerThan(bytes)` | Matches images at or above the given file size |
+| `and / or / not` | Combine matchers |
 
-もちろん`match: (ctx) => boolean`を直接書いても構いません。`ImageContext`には`relativePath`・`dir`・`format`・`hasAlpha`・`width`・`height`・`size`が入っています。
+You can also write `match: (ctx) => boolean` directly. `ImageContext` includes `relativePath`, `dir`, `format`, `hasAlpha`, `width`, `height`, and `size`.
 
-## レスポンシブ画像(`srcset`)の生成
+## Responsive images (`srcset`)
 
-`OutputTarget`に`widths`を指定すると、その出力を複数の幅にリサイズした派生ファイル(`photo-320w.webp`など)を生成し、`<picture>`書き換え時に`srcset`(`w`記述子つき)としてまとめます。`sizes`も合わせて指定すると、対応する`<source>`(またはフォールバックの`<img>`)に`sizes`属性が付与されます。
+Setting `widths` on an `OutputTarget` generates several width-resized variants of that output (e.g. `photo-320w.webp`) and wires them up as a `srcset` (with `w` descriptors) when rewriting `<picture>`. Add `sizes` too, and it's applied to the corresponding `<source>` (or the fallback `<img>`) as a `sizes` attribute.
 
 ```ts
 distCompress({
@@ -135,31 +135,31 @@ distCompress({
 </picture>
 ```
 
-- 元画像の幅を超えるサイズはアップスケールを避けるため自動的にスキップされます。指定した幅がすべて元画像より大きい場合は、元画像と同じ幅で1枚だけ生成されます。
-- `widths`を指定しない出力は従来どおり単一ファイル・`srcset`なしのままです。
+- Widths larger than the source image are automatically skipped to avoid upscaling. If every requested width exceeds the source, a single output at the source's own width is produced instead.
+- Outputs without `widths` behave exactly as before: a single file, no `srcset`.
 
-## フォールバックの自動設定
+## Automatic fallback
 
-`fallback`オプションで、**すべてのルールに対して**指定フォーマットのフォールバック出力を自動追加できます。ルールごとに書く必要はありません。
+The `fallback` option automatically adds a fallback output in the given format to **every rule**, so you don't have to repeat it per rule.
 
 ```ts
 distCompress({
   fallback: {
-    enabled: true,   // デフォルト true
-    format: "webp",  // デフォルト "webp"
+    enabled: true,   // default true
+    format: "webp",  // default "webp"
     options: { quality: 80 },
   },
 });
 ```
 
-- ルールがすでにそのフォーマットを出力している場合は重複追加せず、`fallback: true`フラグだけを付与します。
-- `fallback: false`で無効化できます(その場合、各ルールの出力に`fallback: true`を明示しない限り、HTML書き換え時の`<img src>`は元ファイルのままになります)。
+- If a rule already outputs that format, it's not duplicated — only the `fallback: true` flag is added.
+- Set `fallback: false` to disable it (in that case, the `<img src>` after HTML rewriting stays the original file unless a rule explicitly sets `fallback: true` on one of its outputs).
 
-`fallback: true`が付いた出力は、`<picture>`書き換え時の**最終`<img src>`**(かつ`<source>`一覧には含めない)として使われます。それ以外の出力は`<source>`として、AVIF→WebP→...の優先順で並びます。
+The output flagged `fallback: true` is used as the **final `<img src>`** when rewriting `<picture>` (and is excluded from the `<source>` list). Other outputs become `<source>` elements, ordered best-format-first (AVIF → WebP → …).
 
-## HTML書き換え(`<picture>`自動生成)
+## HTML rewriting (automatic `<picture>` generation)
 
-`rewriteHtml: true`(デフォルト)のとき、distの`**/*.html`を走査し、変換対象になった画像を参照する`<img>`を以下のように書き換えます。
+When `rewriteHtml: true` (the default), `dist`'s `**/*.html` files are scanned, and `<img>` tags referencing a converted image are rewritten like this:
 
 ```html
 <!-- Before -->
@@ -179,76 +179,76 @@ distCompress({
 </picture>
 ```
 
-- ルート絶対パス(`/images/...`)・相対パスのどちらの`src`にも対応し、書き換え後も同じ形式(絶対/相対)を保ちます。
-- 外部URL・`data:` URIの`<img>`はスキップします。
-- すでに`<picture>`の中にある`<img>`はスキップします(二重書き換え防止)。
-- `rewriteHtml: false`にすると、HTMLは一切変更せずファイル生成のみ行います。
+- Both root-absolute (`/images/...`) and relative `src` values are supported, and the rewritten path keeps the same style (absolute/relative) as the original.
+- `<img>` tags with external URLs or `data:` URIs are skipped.
+- `<img>` tags already inside a `<picture>` are skipped (prevents double rewriting).
+- Set `rewriteHtml: false` to only generate files, leaving HTML untouched.
 
-## 元ファイルの削除
+## Removing originals
 
 ```ts
 distCompress({ removeOriginal: true });
 ```
 
-グローバルまたはルール単位(`rule.removeOriginal`)で、フォールバック出力が存在する画像に限り元ファイルを削除できます(フォールバックが無い状態で削除すると参照が壊れるため、安全のため意図的にガードしています)。
+Globally, or per rule (`rule.removeOriginal`), you can delete the original file — but only for images that have a fallback output (deleting without one would break references, so this is guarded intentionally for safety).
 
-## オプション一覧
+## Options
 
 ```ts
 interface AstroDistCompressOptions {
-  rules?: CompressRule[];              // 既定: PNG(透過)→webp / PNG(不透明)→avif / JPEG→avif
-  fallback?: FallbackConfig | false;    // 既定: { enabled: true, format: "webp" }
-  rewriteHtml?: boolean;                // 既定: true
-  removeOriginal?: boolean;             // 既定: false
-  extensions?: string[];                // 既定: ["png", "jpg", "jpeg"]
-  exclude?: string[];                   // distルートからの除外glob
-  concurrency?: number;                 // 既定: 4
-  logger?: boolean;                     // 既定: true
-  dryRun?: boolean;                     // 既定: false。ファイル生成・削除・HTML書き換えを行わずログのみ出力
-  onError?: "skip" | "throw";           // 既定: "skip"。1枚の変換失敗時にビルド全体を止めるか
-  report?: string | false;              // 既定: false。指定パスに実行結果のJSONサマリを出力
+  rules?: CompressRule[];              // default: PNG(alpha)→webp / PNG(opaque)→avif / JPEG→avif
+  fallback?: FallbackConfig | false;   // default: { enabled: true, format: "webp" }
+  rewriteHtml?: boolean;               // default: true
+  removeOriginal?: boolean;            // default: false
+  extensions?: string[];               // default: ["png", "jpg", "jpeg"]
+  exclude?: string[];                  // exclude globs, relative to the dist root
+  concurrency?: number;                // default: 4
+  logger?: boolean;                    // default: true
+  dryRun?: boolean;                    // default: false. Log only — no files written/removed, no HTML rewritten
+  onError?: "skip" | "throw";          // default: "skip". Whether a single failed conversion aborts the whole build
+  report?: string | false;             // default: false. Write a JSON summary of the run to this path
 }
 ```
 
-### `dryRun`(ドライラン)
+### `dryRun`
 
 ```ts
 distCompress({ dryRun: true });
 ```
 
-有効にすると、実際にはファイルを書き込まず・削除せず・HTMLも書き換えません。サイズはメモリ上でエンコードして計測するため、ログやレポートには本番実行時とほぼ同じ数値(圧縮後サイズ・削減率)が出力されます。設定を試してから本番に反映したいときに使います。
+When enabled, no files are written or removed, and HTML is not rewritten. Sizes are still computed by encoding to memory, so the log and report show numbers (compressed size, savings) close to what a real run would produce. Use this to try out a configuration before letting it touch your build output.
 
-### `onError`(エラー処理)
+### `onError`
 
 ```ts
-distCompress({ onError: "skip" }); // 既定
+distCompress({ onError: "skip" }); // default
 ```
 
-- `"skip"`(既定): 1枚の画像変換が失敗しても警告ログを出して残りの処理を継続します。壊れた画像が1枚あるだけでビルド全体が落ちるのを防ぎます。
-- `"throw"`: 変換失敗時に例外を投げ、ビルドを失敗させます。CIで問題を確実に検知したい場合に。
+- `"skip"` (default): logs a warning and continues with the rest of the images when one conversion fails. A single corrupt image won't take down the whole build.
+- `"throw"`: throws on a failed conversion, failing the build. Useful in CI when you want to catch problems immediately.
 
-### `report`(JSONレポート出力)
+### `report`
 
 ```ts
 distCompress({ report: "dist-compress-report.json" });
 ```
 
-ビルド完了後、変換した各画像の出力ファイル一覧・サイズ・HTML書き換え件数などをJSONファイルに書き出します。相対パスはカレントディレクトリ(通常はプロジェクトルート)基準で解決されます。CIでのサイズ回帰チェックなど、後続処理との連携に使えます。
+Writes a JSON file after the build finishes, listing each converted image's outputs, sizes, and the HTML rewrite counts. Relative paths resolve against the current working directory (usually the project root). Useful for wiring into follow-up steps such as a CI size-regression check.
 
-## 動作サンプル
+## Example
 
-`example/`に最小構成のAstroプロジェクトがあります。
+There's a minimal Astro project in `example/`.
 
 ```bash
-npm run build          # このパッケージ自体をビルド
+npm run build          # build this package itself
 cd example
 npm install
-npm run build           # astro build。ビルド後ログに圧縮結果が出力される
+npm run build           # astro build; the compression results are logged afterward
 ```
 
-## 仕組み
+## How it works
 
-1. `astro:build:done`フックで`dir`(出力ディレクトリ)を受け取る(このフックはビルド時のみ発火)。
-2. `fast-glob`でdist内の対象拡張子の画像を列挙し、`sharp`でフォーマット・透過有無・サイズを読み取る。
-3. 各画像に対して`rules`を先頭から評価し、最初にマッチしたルールの`outputs`ぶんだけ`sharp`で変換・書き出す。
-4. `rewriteHtml`が有効なら、distの`*.html`を走査して該当`<img>`を`<picture>`に書き換える。
+1. The `astro:build:done` hook receives `dir` (the output directory) — this hook only fires on build.
+2. `fast-glob` enumerates matching-extension images under `dist`, and `sharp` reads each one's format, transparency, and dimensions.
+3. For each image, `rules` are evaluated top to bottom; the first match's `outputs` are converted and written with `sharp`.
+4. If `rewriteHtml` is enabled, `dist`'s `*.html` files are scanned and matching `<img>` tags are rewritten into `<picture>`.
