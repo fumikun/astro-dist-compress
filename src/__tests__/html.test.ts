@@ -43,7 +43,7 @@ function output(overrides: Partial<ConvertedOutput>): ConvertedOutput {
   };
 }
 
-async function writeHtmlAndRewrite(html: string, outputs: ConvertedOutput[]): Promise<string> {
+async function writeHtmlAndRewrite(html: string, outputs: ConvertedOutput[], dryRun = false): Promise<string> {
   await writeFile(join(root, "index.html"), html, "utf-8");
   const rule: CompressRule = { match: () => true, outputs: [] };
   const result: ConvertResult = {
@@ -54,7 +54,7 @@ async function writeHtmlAndRewrite(html: string, outputs: ConvertedOutput[]): Pr
     sizeBefore: 10_000,
     sizeAfter: 1000,
   };
-  await rewriteHtml(root, [result]);
+  await rewriteHtml(root, [result], dryRun);
   return readFile(join(root, "index.html"), "utf-8");
 }
 
@@ -102,5 +102,16 @@ describe("rewriteHtml responsive srcset", () => {
     expect(html).toContain('src="/photo-640w.webp"');
     expect(html).toContain('srcset="/photo-320w.webp 320w, /photo-640w.webp 640w"');
     expect(html).toContain('sizes="50vw"');
+  });
+
+  it("leaves the HTML file untouched when dryRun is set", async () => {
+    const original = `<img src="/photo.png" alt="x" />`;
+    const html = await writeHtmlAndRewrite(
+      original,
+      [output({ relativePath: "photo.webp", fallback: true, targetIndex: 0 })],
+      true,
+    );
+
+    expect(html).toBe(original);
   });
 });

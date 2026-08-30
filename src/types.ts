@@ -114,6 +114,25 @@ export interface AstroDistCompressOptions {
   concurrency?: number;
   /** Log progress and a summary of bytes saved. Default: true. */
   logger?: boolean;
+  /**
+   * Preview what would happen without touching the filesystem: no output
+   * files are written, no originals are removed, and HTML is not rewritten.
+   * Sizes are still computed (by encoding to memory) so the logged summary
+   * and `report` reflect what a real run would produce. Default: false.
+   */
+  dryRun?: boolean;
+  /**
+   * What to do when converting a single image throws. `"skip"` logs a
+   * warning and continues with the rest of the images; `"throw"` aborts the
+   * whole build. Default: "skip".
+   */
+  onError?: "skip" | "throw";
+  /**
+   * Write a JSON summary of the run (per-image outputs, byte totals, HTML
+   * rewrite counts) to this path once the build finishes. Relative paths are
+   * resolved against the current working directory. Default: false (disabled).
+   */
+  report?: string | false;
 }
 
 /** Fully-resolved options, after defaults have been applied. */
@@ -126,4 +145,7 @@ export interface ResolvedOptions {
   exclude: string[];
   concurrency: number;
   logger: boolean;
+  dryRun: boolean;
+  onError: "skip" | "throw";
+  report: string | false;
 }

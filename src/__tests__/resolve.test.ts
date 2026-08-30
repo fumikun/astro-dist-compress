@@ -43,4 +43,18 @@ describe("resolveOptions", () => {
     expect(resolved.fallback).toBe(false);
     expect(resolved.rules[0]!.outputs).toEqual([{ format: "avif" }]);
   });
+
+  it("defaults dryRun, onError and report", () => {
+    const resolved = resolveOptions();
+    expect(resolved.dryRun).toBe(false);
+    expect(resolved.onError).toBe("skip");
+    expect(resolved.report).toBe(false);
+  });
+
+  it("honours explicit dryRun, onError and report", () => {
+    const resolved = resolveOptions({ dryRun: true, onError: "throw", report: "dist-compress-report.json" });
+    expect(resolved.dryRun).toBe(true);
+    expect(resolved.onError).toBe("throw");
+    expect(resolved.report).toBe("dist-compress-report.json");
+  });
 });

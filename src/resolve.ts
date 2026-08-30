@@ -26,6 +26,9 @@ export function resolveOptions(options: AstroDistCompressOptions = {}): Resolved
     exclude: options.exclude ?? [],
     concurrency: options.concurrency ?? 4,
     logger: options.logger ?? true,
+    dryRun: options.dryRun ?? false,
+    onError: options.onError ?? "skip",
+    report: options.report ?? false,
   };
 }
 

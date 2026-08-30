@@ -204,8 +204,36 @@ interface AstroDistCompressOptions {
   exclude?: string[];                   // distルートからの除外glob
   concurrency?: number;                 // 既定: 4
   logger?: boolean;                     // 既定: true
+  dryRun?: boolean;                     // 既定: false。ファイル生成・削除・HTML書き換えを行わずログのみ出力
+  onError?: "skip" | "throw";           // 既定: "skip"。1枚の変換失敗時にビルド全体を止めるか
+  report?: string | false;              // 既定: false。指定パスに実行結果のJSONサマリを出力
 }
 ```
+
+### `dryRun`(ドライラン)
+
+```ts
+distCompress({ dryRun: true });
+```
+
+有効にすると、実際にはファイルを書き込まず・削除せず・HTMLも書き換えません。サイズはメモリ上でエンコードして計測するため、ログやレポートには本番実行時とほぼ同じ数値(圧縮後サイズ・削減率)が出力されます。設定を試してから本番に反映したいときに使います。
+
+### `onError`(エラー処理)
+
+```ts
+distCompress({ onError: "skip" }); // 既定
+```
+
+- `"skip"`(既定): 1枚の画像変換が失敗しても警告ログを出して残りの処理を継続します。壊れた画像が1枚あるだけでビルド全体が落ちるのを防ぎます。
+- `"throw"`: 変換失敗時に例外を投げ、ビルドを失敗させます。CIで問題を確実に検知したい場合に。
+
+### `report`(JSONレポート出力)
+
+```ts
+distCompress({ report: "dist-compress-report.json" });
+```
+
+ビルド完了後、変換した各画像の出力ファイル一覧・サイズ・HTML書き換え件数などをJSONファイルに書き出します。相対パスはカレントディレクトリ(通常はプロジェクトルート)基準で解決されます。CIでのサイズ回帰チェックなど、後続処理との連携に使えます。
 
 ## 動作サンプル
 

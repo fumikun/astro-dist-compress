@@ -23,7 +23,7 @@ export interface HtmlRewriteSummary {
   imagesRewritten: number;
 }
 
-export async function rewriteHtml(root: string, results: ConvertResult[]): Promise<HtmlRewriteSummary> {
+export async function rewriteHtml(root: string, results: ConvertResult[], dryRun = false): Promise<HtmlRewriteSummary> {
   const byRelativePath = new Map(results.map((r) => [r.source.relativePath, r]));
   if (byRelativePath.size === 0) return { filesChanged: 0, imagesRewritten: 0 };
 
@@ -58,7 +58,7 @@ export async function rewriteHtml(root: string, results: ConvertResult[]): Promi
     }
 
     if (changedInFile > 0) {
-      await writeFile(absolutePath, dom.toString(), "utf-8");
+      if (!dryRun) await writeFile(absolutePath, dom.toString(), "utf-8");
       filesChanged++;
       imagesRewritten += changedInFile;
     }

@@ -16,6 +16,9 @@ distCompress(options?: AstroDistCompressOptions)
 | `exclude` | `string[]` | `[]` | Glob patterns, relative to the output root, to skip entirely. |
 | `concurrency` | `number` | `4` | Number of images processed in parallel. |
 | `logger` | `boolean` | `true` | Log progress and a bytes-saved summary via Astro's integration logger. |
+| `dryRun` | `boolean` | `false` | Preview a run without touching the filesystem. See [Dry run, errors & reporting](/guide/operations). |
+| `onError` | `"skip" \| "throw"` | `"skip"` | What to do when converting a single image fails. See [Dry run, errors & reporting](/guide/operations). |
+| `report` | `string \| false` | `false` | Write a JSON summary of the run to this path. See [Dry run, errors & reporting](/guide/operations). |
 
 ## `CompressRule`
 

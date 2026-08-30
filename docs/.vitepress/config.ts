@@ -10,6 +10,7 @@ const enGuideSidebar = [
       { text: "Fallback images", link: "/guide/fallback" },
       { text: "HTML rewriting", link: "/guide/html-rewriting" },
       { text: "Removing originals", link: "/guide/removing-originals" },
+      { text: "Dry run, errors & reporting", link: "/guide/operations" },
     ],
   },
 ];

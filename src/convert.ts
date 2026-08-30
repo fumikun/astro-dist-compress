@@ -27,7 +27,12 @@ export interface ConvertResult {
   sizeAfter: number;
 }
 
-export async function convertImage(ctx: ImageContext, rule: CompressRule, removeOriginal: boolean): Promise<ConvertResult> {
+export async function convertImage(
+  ctx: ImageContext,
+  rule: CompressRule,
+  removeOriginal: boolean,
+  dryRun = false,
+): Promise<ConvertResult> {
   const outputs: ConvertedOutput[] = [];
 
   for (const [targetIndex, target] of rule.outputs.entries()) {
@@ -38,13 +43,17 @@ export async function convertImage(ctx: ImageContext, rule: CompressRule, remove
       let pipeline = sharp(ctx.absolutePath);
       if (width !== undefined) pipeline = pipeline.resize({ width });
       pipeline = pipeline.toFormat(toSharpFormat(target.format), target.options);
-      const info = await pipeline.toFile(outPath.absolutePath);
+
+      // In dry-run mode, encode to memory to get an accurate size for the
+      // summary/report without writing anything to disk.
+      const size = dryRun ? (await pipeline.toBuffer()).length : (await pipeline.toFile(outPath.absolutePath)).size;
+
       outputs.push({
         absolutePath: outPath.absolutePath,
         relativePath: outPath.relativePath,
         format: target.format,
         fallback: target.fallback ?? false,
-        size: info.size,
+        size,
         targetIndex,
         width,
         sizes: target.sizes,
@@ -56,8 +65,10 @@ export async function convertImage(ctx: ImageContext, rule: CompressRule, remove
   const shouldRemoveOriginal = (rule.removeOriginal ?? removeOriginal) && hasFallbackOutput;
 
   let originalRemoved = false;
-  if (shouldRemoveOriginal) {
+  if (shouldRemoveOriginal && !dryRun) {
     await rm(ctx.absolutePath);
+    originalRemoved = true;
+  } else if (shouldRemoveOriginal) {
     originalRemoved = true;
   }
 

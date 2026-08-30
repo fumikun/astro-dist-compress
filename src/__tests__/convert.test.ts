@@ -103,3 +103,24 @@ describe("convertImage widths", () => {
     expect(webpOutputs.every((o) => o.targetIndex === 1)).toBe(true);
   });
 });
+
+describe("convertImage dryRun", () => {
+  it("reports realistic sizes without writing output files or removing the original", async () => {
+    const ctx = await makeSourceImage("photo.png", 800, 600);
+    const rule: CompressRule = {
+      match: () => true,
+      outputs: [{ format: "webp", widths: [320, 640], fallback: true }],
+    };
+
+    const result = await convertImage(ctx, rule, true, true);
+
+    expect(result.outputs).toHaveLength(2);
+    expect(result.outputs.every((o) => o.size > 0)).toBe(true);
+    expect(result.originalRemoved).toBe(true); // reflects what *would* happen, for reporting
+
+    for (const output of result.outputs) {
+      await expect(stat(output.absolutePath)).rejects.toThrow();
+    }
+    await expect(stat(ctx.absolutePath)).resolves.toBeDefined();
+  });
+});

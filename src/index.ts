@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
 import { convertImage, type ConvertResult } from "./convert.js";
@@ -43,30 +45,90 @@ export default function distCompress(options: AstroDistCompressOptions = {}): As
           if (rule) matched.push({ ctx, rule });
         }
 
-        log.info(`compressing ${matched.length}/${images.length} image(s)...`);
+        const dryRunPrefix = resolved.dryRun ? "[dry run] " : "";
+        log.info(`${dryRunPrefix}compressing ${matched.length}/${images.length} image(s)...`);
 
-        const results = await runPool(matched, resolved.concurrency, ({ ctx, rule }) =>
-          convertImage(ctx, rule, resolved.removeOriginal),
-        );
+        const outcomes = await runPool(matched, resolved.concurrency, async ({ ctx, rule }) => {
+          try {
+            return await convertImage(ctx, rule, resolved.removeOriginal, resolved.dryRun);
+          } catch (err) {
+            if (resolved.onError === "throw") throw err;
+            log.warn(`${dryRunPrefix}failed to convert ${ctx.relativePath}, skipping: ${errorMessage(err)}`);
+            return null;
+          }
+        });
+        const results = outcomes.filter((r): r is ConvertResult => r !== null);
 
-        logSummary(log, results);
+        logSummary(log, results, dryRunPrefix);
 
+        let htmlSummary = { filesChanged: 0, imagesRewritten: 0 };
         if (resolved.rewriteHtml) {
-          const { filesChanged, imagesRewritten } = await rewriteHtml(root, results);
-          log.info(`rewrote ${imagesRewritten} <img> tag(s) into <picture> across ${filesChanged} html file(s).`);
+          htmlSummary = await rewriteHtml(root, results, resolved.dryRun);
+          log.info(
+            `${dryRunPrefix}rewrote ${htmlSummary.imagesRewritten} <img> tag(s) into <picture> across ${htmlSummary.filesChanged} html file(s).`,
+          );
+        }
+
+        if (resolved.report) {
+          await writeReport(resolved.report, results, htmlSummary, resolved.dryRun);
+          log.info(`${dryRunPrefix}wrote report to ${resolved.report}`);
         }
       },
     },
   };
 }
 
-function logSummary(log: { info: (msg: string) => void }, results: ConvertResult[]): void {
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+async function writeReport(
+  reportPath: string,
+  results: ConvertResult[],
+  htmlSummary: { filesChanged: number; imagesRewritten: number },
+  dryRun: boolean,
+): Promise<void> {
+  const absolutePath = resolvePath(process.cwd(), reportPath);
+  await mkdir(dirname(absolutePath), { recursive: true });
+
+  const before = results.reduce((sum, r) => sum + r.sizeBefore, 0);
+  const after = results.reduce((sum, r) => sum + r.sizeAfter, 0);
+
+  const report = {
+    generatedAt: new Date().toISOString(),
+    dryRun,
+    images: results.map((r) => ({
+      source: r.source.relativePath,
+      rule: r.rule.name,
+      originalRemoved: r.originalRemoved,
+      sizeBefore: r.sizeBefore,
+      sizeAfter: r.sizeAfter,
+      outputs: r.outputs.map((o) => ({
+        relativePath: o.relativePath,
+        format: o.format,
+        width: o.width,
+        fallback: o.fallback,
+        size: o.size,
+      })),
+    })),
+    summary: {
+      imagesProcessed: results.length,
+      sizeBefore: before,
+      sizeAfter: after,
+      html: htmlSummary,
+    },
+  };
+
+  await writeFile(absolutePath, JSON.stringify(report, null, 2), "utf-8");
+}
+
+function logSummary(log: { info: (msg: string) => void }, results: ConvertResult[], prefix: string): void {
   if (results.length === 0) return;
   const before = results.reduce((sum, r) => sum + r.sizeBefore, 0);
   const after = results.reduce((sum, r) => sum + r.sizeAfter, 0);
   const savedPct = before === 0 ? 0 : (1 - after / before) * 100;
   log.info(
-    `done: ${formatBytes(before)} -> ${formatBytes(after)} (${savedPct >= 0 ? "-" : "+"}${Math.abs(savedPct).toFixed(1)}%)`,
+    `${prefix}done: ${formatBytes(before)} -> ${formatBytes(after)} (${savedPct >= 0 ? "-" : "+"}${Math.abs(savedPct).toFixed(1)}%)`,
   );
 }
 
