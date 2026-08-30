@@ -10,6 +10,12 @@ export interface ConvertedOutput {
   format: OutputTarget["format"];
   fallback: boolean;
   size: number;
+  /** Index of the `OutputTarget` (within the matched rule's `outputs`) this variant was generated from. Used to group width variants of the same target back together. */
+  targetIndex: number;
+  /** Pixel width this variant was resized to, when the target set `widths`. Undefined for non-responsive outputs. */
+  width?: number;
+  /** `sizes` attribute copied from the originating `OutputTarget`, when set. */
+  sizes?: string;
 }
 
 export interface ConvertResult {
@@ -24,17 +30,26 @@ export interface ConvertResult {
 export async function convertImage(ctx: ImageContext, rule: CompressRule, removeOriginal: boolean): Promise<ConvertResult> {
   const outputs: ConvertedOutput[] = [];
 
-  for (const target of rule.outputs) {
-    const outPath = outputPathFor(ctx, target);
-    const pipeline = sharp(ctx.absolutePath).toFormat(toSharpFormat(target.format), target.options);
-    const info = await pipeline.toFile(outPath.absolutePath);
-    outputs.push({
-      absolutePath: outPath.absolutePath,
-      relativePath: outPath.relativePath,
-      format: target.format,
-      fallback: target.fallback ?? false,
-      size: info.size,
-    });
+  for (const [targetIndex, target] of rule.outputs.entries()) {
+    const widths = resolveWidths(target, ctx);
+
+    for (const width of widths) {
+      const outPath = outputPathFor(ctx, target, width);
+      let pipeline = sharp(ctx.absolutePath);
+      if (width !== undefined) pipeline = pipeline.resize({ width });
+      pipeline = pipeline.toFormat(toSharpFormat(target.format), target.options);
+      const info = await pipeline.toFile(outPath.absolutePath);
+      outputs.push({
+        absolutePath: outPath.absolutePath,
+        relativePath: outPath.relativePath,
+        format: target.format,
+        fallback: target.fallback ?? false,
+        size: info.size,
+        targetIndex,
+        width,
+        sizes: target.sizes,
+      });
+    }
   }
 
   const hasFallbackOutput = outputs.some((o) => o.fallback);
@@ -58,13 +73,34 @@ export async function convertImage(ctx: ImageContext, rule: CompressRule, remove
   };
 }
 
-function outputPathFor(ctx: ImageContext, target: OutputTarget): { absolutePath: string; relativePath: string } {
+/**
+ * Widths to render for a target, deduped/sorted ascending and capped to the
+ * source's own width (no upscaling). Returns `[undefined]` when the target
+ * doesn't request responsive widths at all, meaning a single, unsuffixed
+ * output should be produced (existing, non-responsive behaviour).
+ */
+function resolveWidths(target: OutputTarget, ctx: ImageContext): Array<number | undefined> {
+  if (!target.widths || target.widths.length === 0) return [undefined];
+
+  const capped = Array.from(new Set(target.widths))
+    .filter((w) => w <= ctx.width)
+    .sort((a, b) => a - b);
+
+  return capped.length > 0 ? capped : [ctx.width];
+}
+
+function outputPathFor(
+  ctx: ImageContext,
+  target: OutputTarget,
+  width?: number,
+): { absolutePath: string; relativePath: string } {
   const extension = target.format === "jpg" ? "jpeg" : target.format;
   const sameFormat = extension === ctx.format || (extension === "jpeg" && ctx.format === "jpg");
   const suffix = sameFormat ? target.sameFormatSuffix ?? "-compressed" : "";
+  const widthSuffix = width !== undefined ? `-${width}w` : "";
 
   const baseWithoutExt = ctx.relativePath.slice(0, ctx.relativePath.length - ctx.extension.length - 1);
-  const relativePath = `${baseWithoutExt}${suffix}.${extension}`;
+  const relativePath = `${baseWithoutExt}${suffix}${widthSuffix}.${extension}`;
   const root = ctx.absolutePath.slice(0, ctx.absolutePath.length - ctx.relativePath.length);
 
   return { relativePath, absolutePath: `${root}${relativePath}` };

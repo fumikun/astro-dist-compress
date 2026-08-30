@@ -102,12 +102,15 @@ interface OutputTarget {
   options?: Record<string, unknown>; // passed straight to sharp's .toFormat()
   fallback?: boolean;
   sameFormatSuffix?: string; // default "-compressed"
+  widths?: number[];
+  sizes?: string;
 }
 ```
 
 - `options` is forwarded verbatim to sharp's encoder (`quality`, `effort`, `lossless`, …).
 - `fallback: true` marks the output used as the final `<img src>` when [HTML rewriting](/guide/html-rewriting) is enabled. Exactly one output per rule should set this.
 - If a target format matches the source format (rare, but possible with custom rules), the file is written with a suffix (default `-compressed`) so the original is never silently overwritten.
+- `widths` (and `sizes`) generate multiple resized variants of this output wired up as a `srcset` — see [Responsive images](/guide/responsive-images).
 
 ## Not using the defaults
 

@@ -97,6 +97,47 @@ export default defineConfig({
 
 もちろん`match: (ctx) => boolean`を直接書いても構いません。`ImageContext`には`relativePath`・`dir`・`format`・`hasAlpha`・`width`・`height`・`size`が入っています。
 
+## レスポンシブ画像(`srcset`)の生成
+
+`OutputTarget`に`widths`を指定すると、その出力を複数の幅にリサイズした派生ファイル(`photo-320w.webp`など)を生成し、`<picture>`書き換え時に`srcset`(`w`記述子つき)としてまとめます。`sizes`も合わせて指定すると、対応する`<source>`(またはフォールバックの`<img>`)に`sizes`属性が付与されます。
+
+```ts
+distCompress({
+  rules: [
+    {
+      match: hasFormat("jpeg", "jpg"),
+      outputs: [
+        { format: "avif", widths: [320, 640, 1280], sizes: "(min-width: 768px) 50vw, 100vw" },
+        { format: "webp", widths: [320, 640, 1280], sizes: "(min-width: 768px) 50vw, 100vw", fallback: true },
+      ],
+    },
+  ],
+});
+```
+
+```html
+<!-- Before -->
+<img src="/images/photo.jpg" alt="..." />
+
+<!-- After -->
+<picture>
+  <source
+    srcset="/images/photo-320w.avif 320w, /images/photo-640w.avif 640w, /images/photo-1280w.avif 1280w"
+    type="image/avif"
+    sizes="(min-width: 768px) 50vw, 100vw"
+  />
+  <img
+    src="/images/photo-1280w.webp"
+    srcset="/images/photo-320w.webp 320w, /images/photo-640w.webp 640w, /images/photo-1280w.webp 1280w"
+    sizes="(min-width: 768px) 50vw, 100vw"
+    alt="..."
+  />
+</picture>
+```
+
+- 元画像の幅を超えるサイズはアップスケールを避けるため自動的にスキップされます。指定した幅がすべて元画像より大きい場合は、元画像と同じ幅で1枚だけ生成されます。
+- `widths`を指定しない出力は従来どおり単一ファイル・`srcset`なしのままです。
+
 ## フォールバックの自動設定
 
 `fallback`オプションで、**すべてのルールに対して**指定フォーマットのフォールバック出力を自動追加できます。ルールごとに書く必要はありません。

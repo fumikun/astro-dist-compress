@@ -6,6 +6,7 @@ const enGuideSidebar = [
     items: [
       { text: "Getting Started", link: "/guide/getting-started" },
       { text: "Rules: directory & image state", link: "/guide/rules" },
+      { text: "Responsive images (srcset)", link: "/guide/responsive-images" },
       { text: "Fallback images", link: "/guide/fallback" },
       { text: "HTML rewriting", link: "/guide/html-rewriting" },
       { text: "Removing originals", link: "/guide/removing-originals" },

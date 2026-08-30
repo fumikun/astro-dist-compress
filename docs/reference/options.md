@@ -34,6 +34,8 @@ distCompress(options?: AstroDistCompressOptions)
 | `options` | `Record<string, unknown>?` | Passed straight through to sharp's `.toFormat(format, options)`. |
 | `fallback` | `boolean?` | Marks this output as the one used for the final `<img src>`. |
 | `sameFormatSuffix` | `string?` | Suffix used when the target format equals the source format, to avoid overwriting it. Default: `"-compressed"`. |
+| `widths` | `number[]?` | Generate one width-resized variant per entry, wired up as a `srcset`. Widths larger than the source are dropped (no upscaling). See [Responsive images](/guide/responsive-images). |
+| `sizes` | `string?` | `sizes` attribute emitted on the corresponding `<source>`/`<img>` when `widths` produces more than one variant. |
 
 ## `FallbackConfig`
 

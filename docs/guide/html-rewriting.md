@@ -41,5 +41,5 @@ With this off, converted image files are still written to disk — you're just r
 
 ## Caveats
 
-- Rewriting only looks at `<img src="…">`. It does not currently rewrite `srcset` on `<img>`, `background-image` in CSS, or inline `style` attributes.
+- Rewriting only looks at `<img src="…">` — an existing `srcset` attribute you hand-authored on the source `<img>` is not read or merged in. (The plugin can still *generate* its own `srcset` on the rewritten output when a rule's `outputs` use `widths` — see [Responsive images](/guide/responsive-images).) `background-image` in CSS and inline `style` attributes are not rewritten either.
 - If your `astro.config` sets a non-default [`base`](https://docs.astro.build/en/reference/configuration-reference/#base), root-absolute `src` values in the HTML (`/my-app/images/photo.png`) include that base prefix, but files on disk under `dir` do not. Path resolution doesn't currently strip `base`, so matches will silently be skipped for such projects — the images are still converted and written to disk, only the HTML rewrite is affected. Use relative `src` values in these projects until `base`-aware matching is added.

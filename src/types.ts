@@ -42,6 +42,16 @@ export interface OutputTarget {
   fallback?: boolean;
   /** Suffix appended before the extension when the target format matches the source format, to avoid overwriting the original (default: "-compressed"). */
   sameFormatSuffix?: string;
+  /**
+   * Generate multiple width-resized variants of this output for responsive
+   * `srcset`, e.g. `[320, 640, 1280]`. Widths larger than the source image's
+   * width are skipped (no upscaling); if every requested width exceeds the
+   * source, a single output at the source's own width is produced instead.
+   * Each variant's file name gets a `-{width}w` suffix.
+   */
+  widths?: number[];
+  /** `sizes` attribute to emit on the generated `<source>` (or `<img>`, for the fallback) when `widths` produces more than one variant. */
+  sizes?: string;
 }
 
 export interface CompressRule {

@@ -79,6 +79,41 @@ function resolveImageSrc(htmlRelativePath: string, src: string): string | null {
   return posixNormalize(posixJoin(dirname(htmlRelativePath), withoutQuery));
 }
 
+/** One `OutputTarget`'s generated files, grouped back together (its width variants, if any). */
+interface OutputGroup {
+  format: ImageFormat;
+  fallback: boolean;
+  sizes?: string;
+  /** Ascending by width; a single entry with `width: undefined` for non-responsive targets. */
+  variants: ConvertResult["outputs"];
+}
+
+function groupOutputs(outputs: ConvertResult["outputs"]): OutputGroup[] {
+  const byTarget = new Map<number, OutputGroup>();
+  for (const output of outputs) {
+    let group = byTarget.get(output.targetIndex);
+    if (!group) {
+      group = { format: output.format, fallback: output.fallback, sizes: output.sizes, variants: [] };
+      byTarget.set(output.targetIndex, group);
+    }
+    group.variants.push(output);
+  }
+  for (const group of byTarget.values()) {
+    group.variants.sort((a, b) => (a.width ?? 0) - (b.width ?? 0));
+  }
+  return [...byTarget.values()];
+}
+
+/** Builds the `srcset` value for a group, using `path width` descriptors when the group has responsive variants. */
+function srcsetFor(group: OutputGroup, htmlDir: string, rootAbsolute: boolean): string {
+  return group.variants
+    .map((variant) => {
+      const href = toHref(htmlDir, variant.relativePath, rootAbsolute);
+      return variant.width !== undefined ? `${href} ${variant.width}w` : href;
+    })
+    .join(", ");
+}
+
 function buildPicture(
   img: HTMLElement,
   htmlRelativePath: string,
@@ -86,30 +121,34 @@ function buildPicture(
   rootAbsolute: boolean,
 ): HTMLElement {
   const htmlDir = dirname(htmlRelativePath);
-  const fallbackOutput = result.outputs.find((o) => o.fallback);
-  const sourceOutputs = result.outputs
-    .filter((o) => o !== fallbackOutput)
+  const groups = groupOutputs(result.outputs);
+  const fallbackGroup = groups.find((g) => g.fallback);
+  const sourceGroups = groups
+    .filter((g) => g !== fallbackGroup)
     .sort((a, b) => FORMAT_PRIORITY.indexOf(a.format) - FORMAT_PRIORITY.indexOf(b.format));
 
   const picture = new HTMLElement("picture", {});
 
-  for (const output of sourceOutputs) {
+  for (const group of sourceGroups) {
     const source = new HTMLElement("source", {});
-    source.setAttribute("srcset", toHref(htmlDir, output.relativePath, rootAbsolute));
-    source.setAttribute("type", MIME_TYPES[output.format]);
+    source.setAttribute("srcset", srcsetFor(group, htmlDir, rootAbsolute));
+    source.setAttribute("type", MIME_TYPES[group.format]);
+    if (group.sizes && group.variants.length > 1) source.setAttribute("sizes", group.sizes);
     picture.appendChild(source);
   }
 
   const fallbackImg = img.clone() as HTMLElement;
-  const fallbackRelativePath = fallbackOutput
-    ? fallbackOutput.relativePath
-    : result.originalRemoved
-      ? sourceOutputs[0]?.relativePath
-      : undefined;
-  const fallbackHref = fallbackRelativePath
-    ? toHref(htmlDir, fallbackRelativePath, rootAbsolute)
-    : img.getAttribute("src")!;
-  fallbackImg.setAttribute("src", fallbackHref);
+  if (fallbackGroup) {
+    const largest = fallbackGroup.variants[fallbackGroup.variants.length - 1]!;
+    fallbackImg.setAttribute("src", toHref(htmlDir, largest.relativePath, rootAbsolute));
+    if (fallbackGroup.variants.length > 1) {
+      fallbackImg.setAttribute("srcset", srcsetFor(fallbackGroup, htmlDir, rootAbsolute));
+      if (fallbackGroup.sizes) fallbackImg.setAttribute("sizes", fallbackGroup.sizes);
+    }
+  } else if (result.originalRemoved) {
+    const first = sourceGroups[0]?.variants[0];
+    if (first) fallbackImg.setAttribute("src", toHref(htmlDir, first.relativePath, rootAbsolute));
+  }
   picture.appendChild(fallbackImg);
 
   return picture;
